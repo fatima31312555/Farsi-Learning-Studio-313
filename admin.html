@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Admin · Dars</title>
+<meta name="robots" content="noindex">
+<link rel="stylesheet" href="style.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js"></script><script src="common.js"></script>
+</head><body>
+<header class="top"><div class="wrap"><h1>Dars · Admin panel</h1>
+<nav><a href="admin2.html">Fees, classes, activity</a><a href="dashboard.html">Student view</a><a href="studio.html">Practice studio</a><button id="out">Sign out</button></nav></div></header>
+<main><div class="wrap">
+<div class="tabs" id="tabs" role="tablist"></div>
+
+<section id="t-over">
+  <div class="grid" id="ov"></div>
+</section>
+
+<section id="t-stu" class="hide">
+  <div class="panel"><h3>Students</h3><p class="sub">Change level or role. Promote a trusted person to admin carefully.</p>
+  <div class="scroll"><table><thead><tr><th>Name</th><th>Email</th><th>Level</th><th>XP</th><th>Streak</th><th>Known</th><th>Role</th><th></th></tr></thead><tbody id="stb"></tbody></table></div></div>
+</section>
+
+<section id="t-wrd" class="hide">
+  <div class="panel"><h3 id="wt">Add a word</h3>
+    <form id="wf"><input type="hidden" id="wid">
+      <div class="row" style="margin-top:0"><input id="wc" list="cl" placeholder="Topic (e.g. Food and drink)" required><datalist id="cl"></datalist>
+      <input id="wfa" class="fa" placeholder="Farsi" required><input id="wr" placeholder="Sounds like" required><input id="we" placeholder="Meaning" required></div>
+      <div class="row"><button class="btn" type="submit">Save word</button><button class="btn alt" type="button" id="wx">Clear</button></div></form></div>
+  <div class="panel"><h3>Bulk import</h3><p class="sub">One word per line: <code>farsi|sounds like|meaning</code>. All lines go into the topic below.</p>
+    <div class="row" style="margin-top:0"><input id="bc" placeholder="Topic" list="cl"></div>
+    <textarea id="bt" rows="4" style="width:100%;margin-top:8px" class="fa" placeholder="سلام|salâm|hello"></textarea>
+    <div class="row"><button class="btn" id="bi">Import</button></div></div>
+  <div class="panel"><div class="row" style="margin:0 0 8px"><h3 style="margin:0">All words (<span id="wn">0</span>)</h3><input id="wq" placeholder="Search…" aria-label="Search words"><select id="wfc" aria-label="Filter topic"></select></div>
+  <div class="scroll"><table><thead><tr><th>Farsi</th><th>Sound</th><th>Meaning</th><th>Topic</th><th></th></tr></thead><tbody id="wtb"></tbody></table></div></div>
+</section>
+
+<section id="t-asg" class="hide">
+  <div class="panel"><h3>New homework</h3><form id="af">
+    <div class="row" style="margin-top:0"><input id="at" placeholder="Title" required><select id="ac" aria-label="Topic"></select>
+    <select id="al" aria-label="Level"><option value="">All levels</option><option>Beginner</option><option>Elementary</option><option>Intermediate</option></select><input id="ad" type="date" aria-label="Due date"></div>
+    <textarea id="an" rows="2" style="width:100%;margin-top:8px" placeholder="Instructions"></textarea>
+    <label class="chk"><input type="checkbox" id="amail" checked> Email students about this homework</label><div class="row" style="margin-top:0"><button class="btn" type="submit">Publish homework</button></div></form></div>
+  <div class="panel"><h3>Published homework</h3><div id="al2"></div></div>
+</section>
+
+<section id="t-ann" class="hide">
+  <div class="panel"><h3>New announcement</h3><form id="nf">
+    <input id="nt" placeholder="Title" required style="width:100%"><textarea id="nb" rows="3" style="width:100%;margin-top:8px" placeholder="Message"></textarea>
+    <label class="chk"><input type="checkbox" id="nmail" checked> Email students about this announcement</label><div class="row" style="margin-top:0"><button class="btn" type="submit">Post announcement</button></div></form></div>
+  <div class="panel"><h3>Posted</h3><div id="nl"></div></div>
+</section>
+</div></main>
+<div id="toast" role="status"></div>
+<script>
+var ME,STU=[],WRD=[],KN={},TABS=[["over","Overview"],["stu","Students"],["wrd","Words"],["asg","Homework"],["ann","Announcements"]];
+$("tabs").innerHTML=TABS.map(function(t,i){return '<button role="tab" data-t="'+t[0]+'" aria-selected="'+(i===0)+'">'+t[1]+'</button>'}).join("");
+$("tabs").onclick=function(e){var b=e.target.closest("button");if(!b)return;document.querySelectorAll("#tabs button").forEach(function(x){x.setAttribute("aria-selected",x===b)});TABS.forEach(function(t){$("t-"+t[0]).classList.toggle("hide",t[0]!==b.dataset.t)})};
+function ok(r){if(r.error){toast(r.error.message);return false}return true}
+function cats(){var c=[];WRD.forEach(function(w){if(c.indexOf(w.category)<0)c.push(w.category)});return c}
+
+async function loadAll(){
+  var r=await Promise.all([sb.from("profiles").select("*").order("created_at",{ascending:false}),sb.from("words").select("*").order("category").order("created_at"),sb.from("known_words").select("user_id")]);
+  STU=r[0].data||[];WRD=r[1].data||[];KN={};(r[2].data||[]).forEach(function(k){KN[k.user_id]=(KN[k.user_id]||0)+1});
+  drawOverview();drawStudents();drawWords();await Promise.all([drawAsg(),drawAnn()])}
+function drawOverview(){var s=STU.filter(function(x){return x.role==="student"}),today=new Date().toISOString().slice(0,10),act=STU.filter(function(x){return x.last_active===today}).length,xp=STU.reduce(function(a,x){return a+x.xp},0);
+  $("ov").innerHTML=[[s.length,"students"],[act,"active today"],[WRD.length,"words"],[xp,"total XP"]].map(function(c){return '<div class="stat"><b>'+c[0]+'</b>'+c[1]+'</div>'}).join("")}
+function drawStudents(){$("stb").innerHTML=STU.map(function(s){var me=s.id===ME.id;return '<tr><td>'+esc(s.full_name||"")+'</td><td>'+esc(s.email||"")+'</td><td><select data-id="'+s.id+'" data-f="level">'+["Beginner","Elementary","Intermediate"].map(function(l){return '<option'+(l===s.level?" selected":"")+'>'+l+'</option>'}).join("")+'</select></td><td>'+s.xp+'</td><td>'+s.streak+'</td><td>'+(KN[s.id]||0)+'</td><td><select data-id="'+s.id+'" data-f="role"'+(me?" disabled":"")+'><option'+(s.role==="student"?" selected":"")+'>student</option><option'+(s.role==="admin"?" selected":"")+'>admin</option></select></td><td>'+(me?"":'<button class="btn sm danger" data-del="'+s.id+'">Remove</button>')+'</td></tr>'}).join("")}
+$("stb").onchange=async function(e){var d=e.target.dataset;if(!d.f)return;var u={};u[d.f]=e.target.value;if(d.f==="role"&&e.target.value==="admin"&&!confirm("Give this person full admin access?")){loadAll();return}var r=await sb.from("profiles").update(u).eq("id",d.id);if(ok(r)){toast("Updated");loadAll()}};
+$("stb").onclick=async function(e){var b=e.target.closest("[data-del]");if(!b||!confirm("Remove this student's profile and progress? Their login account stays until you delete it in Supabase > Authentication."))return;var r=await sb.from("profiles").delete().eq("id",b.dataset.del);if(ok(r)){toast("Removed");loadAll()}};
+
+function drawWords(){var c=cats();$("cl").innerHTML=c.map(function(x){return '<option value="'+esc(x)+'">'}).join("");
+  var cur=$("wfc").value;$("wfc").innerHTML='<option>All topics</option>'+c.map(function(x){return "<option>"+esc(x)+"</option>"}).join("");$("wfc").value=cur||"All topics";
+  var ac=$("ac").value;$("ac").innerHTML='<option value="">No topic</option>'+c.map(function(x){return "<option>"+esc(x)+"</option>"}).join("");$("ac").value=ac;
+  var q=$("wq").value.trim().toLowerCase(),f=$("wfc").value;
+  var L=WRD.filter(function(w){return (f==="All topics"||w.category===f)&&(!q||(w.farsi+w.roman+w.meaning).toLowerCase().indexOf(q)>-1)});
+  $("wn").textContent=WRD.length;
+  $("wtb").innerHTML=L.slice(0,300).map(function(w){return '<tr><td class="fa" style="font-size:1.3rem">'+esc(w.farsi)+'</td><td>'+esc(w.roman)+'</td><td>'+esc(w.meaning)+'</td><td>'+esc(w.category)+'</td><td style="white-space:nowrap"><button class="btn sm alt" data-ed="'+w.id+'">Edit</button> <button class="btn sm danger" data-rm="'+w.id+'">Delete</button></td></tr>'}).join("")+(L.length>300?'<tr><td colspan="5" class="sub">Showing 300 of '+L.length+'. Use search.</td></tr>':"")}
+$("wq").oninput=$("wfc").onchange=drawWords;
+$("wf").onsubmit=async function(e){e.preventDefault();var o={category:$("wc").value.trim(),farsi:$("wfa").value.trim(),roman:$("wr").value.trim(),meaning:$("we").value.trim()},id=$("wid").value;
+  var r=id?await sb.from("words").update(o).eq("id",id):await sb.from("words").insert(o);if(ok(r)){toast("Saved");clearW();loadAll()}};
+function clearW(){$("wid").value="";$("wf").reset();$("wt").textContent="Add a word"}
+$("wx").onclick=clearW;
+$("wtb").onclick=async function(e){var b=e.target.closest("button");if(!b)return;
+  if(b.dataset.ed){var w=WRD.find(function(x){return x.id===b.dataset.ed});$("wid").value=w.id;$("wc").value=w.category;$("wfa").value=w.farsi;$("wr").value=w.roman;$("we").value=w.meaning;$("wt").textContent="Edit word";window.scrollTo(0,0)}
+  else if(b.dataset.rm&&confirm("Delete this word? Students' 'known' marks for it will also be removed.")){var r=await sb.from("words").delete().eq("id",b.dataset.rm);if(ok(r)){toast("Deleted");loadAll()}}};
+$("bi").onclick=async function(){var c=$("bc").value.trim();if(!c){toast("Enter a topic");return}
+  var rows=$("bt").value.split("\n").map(function(l){return l.split("|").map(function(x){return x.trim()})}).filter(function(p){return p.length>=3&&p[0]&&p[1]&&p[2]}).map(function(p){return{category:c,farsi:p[0],roman:p[1],meaning:p.slice(2).join("|")}});
+  if(!rows.length){toast("No valid lines found");return}var r=await sb.from("words").insert(rows);if(ok(r)){toast(rows.length+" words added");$("bt").value="";loadAll()}};
+
+async function drawAsg(){var r=await sb.from("assignments").select("*").order("created_at",{ascending:false});
+  $("al2").innerHTML=(r.data||[]).length?r.data.map(function(a){return '<div class="row" style="justify-content:space-between;border-bottom:1px solid var(--line);padding-bottom:8px"><div><b>'+esc(a.title)+'</b> '+(a.category?'<span class="tag">'+esc(a.category)+'</span> ':"")+'<span class="tag">'+esc(a.level||"All levels")+'</span> '+(a.due_date?'<span class="tag gold">Due '+esc(a.due_date)+'</span>':"")+'<div class="sub" style="margin:0">'+esc(a.note||"")+'</div></div><button class="btn sm danger" data-d="'+a.id+'">Delete</button></div>'}).join(""):'<p class="sub">None yet.</p>'}
+async function mail(p){var r=await sb.functions.invoke("notify",{body:p});if(r.error){var m=r.error.message;try{var j=await r.error.context.json();if(j&&j.error)m=j.error}catch(x){}alert("Saved, but the email was not sent: "+m);return}toast(r.data&&r.data.sent?"Emailed "+r.data.sent+" students":(r.data&&r.data.note)||"Saved")}
+$("af").onsubmit=async function(e){e.preventDefault();var o={title:$("at").value.trim(),category:$("ac").value||null,level:$("al").value||null,due_date:$("ad").value||null,note:$("an").value.trim()||null},send=$("amail").checked;var r=await sb.from("assignments").insert(o);if(ok(r)){toast("Published");$("af").reset();$("amail").checked=true;drawAsg();if(send)mail({kind:"homework",title:o.title,body:o.note,category:o.category,due_date:o.due_date,level:o.level})}};
+$("al2").onclick=async function(e){var b=e.target.closest("[data-d]");if(b&&confirm("Delete this homework?")){var r=await sb.from("assignments").delete().eq("id",b.dataset.d);if(ok(r))drawAsg()}};
+
+async function drawAnn(){var r=await sb.from("announcements").select("*").order("created_at",{ascending:false});
+  $("nl").innerHTML=(r.data||[]).length?r.data.map(function(a){return '<div class="row" style="justify-content:space-between;border-bottom:1px solid var(--line);padding-bottom:8px"><div><b>'+esc(a.title)+'</b> <span class="sub">'+new Date(a.created_at).toLocaleDateString()+'</span><div>'+esc(a.body||"")+'</div></div><button class="btn sm danger" data-d="'+a.id+'">Delete</button></div>'}).join(""):'<p class="sub">None yet.</p>'}
+$("nf").onsubmit=async function(e){e.preventDefault();var o={title:$("nt").value.trim(),body:$("nb").value.trim()||null},send=$("nmail").checked;var r=await sb.from("announcements").insert(o);if(ok(r)){toast("Posted");$("nf").reset();$("nmail").checked=true;drawAnn();if(send)mail({kind:"announcement",title:o.title,body:o.body})}};
+$("nl").onclick=async function(e){var b=e.target.closest("[data-d]");if(b&&confirm("Delete this announcement?")){var r=await sb.from("announcements").delete().eq("id",b.dataset.d);if(ok(r))drawAnn()}};
+
+$("out").onclick=signOut;
+(async function(){var u=await requireUser();if(!u)return;if(u.profile.role!=="admin"){document.body.innerHTML='<div class="wrap"><div class="panel auth"><h3>Admins only</h3><p class="sub">Your account does not have admin access.</p><a class="btn" href="dashboard.html">Back to my dashboard</a></div></div>';return}ME=u.profile;loadAll()})();
+</script></body></html>

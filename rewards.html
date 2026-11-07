@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Monthly reward · Dars</title>
+<link rel="stylesheet" href="style.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js"></script><script src="common.js"></script>
+</head><body>
+<header class="top"><div class="wrap"><h1><a href="dashboard.html">Dars · Farsi Class</a></h1>
+<nav><a href="dashboard.html" data-t="home">Home</a><button id="lg" aria-label="Language">Roman Urdu</button><button id="out" data-t="out">Sign out</button></nav></div></header>
+<main><div class="wrap">
+  <h2 data-t="h">Monthly reward</h2><p class="sub" data-t="sub">Our best students and this month's special video.</p>
+  <div class="panel" id="rw"></div>
+  <div class="panel"><h3 data-t="top">Top students this month</h3><div id="tp"></div></div>
+  <div class="panel"><h3 data-t="mine">Certificates</h3><div id="mc"></div></div>
+  <div class="panel hide" id="ad"><h3 data-t="add">Add monthly reward (admin)</h3>
+    <div class="row"><input id="rm" type="month" aria-label="Month"><input id="rt" data-p="rtp" placeholder="Title"></div>
+    <div class="row"><input id="ry" data-p="ryp" placeholder="YouTube link"></div>
+    <div class="row"><textarea id="rn" data-p="rnp" rows="2" placeholder="Message for students"></textarea></div>
+    <div class="row"><button class="btn" id="rs" data-t="save">Save reward</button></div>
+  </div>
+</div></main>
+<div id="toast" role="status"></div>
+<script>
+var T={en:{home:"Home",out:"Sign out",h:"Monthly reward",sub:"Our best students and this month's special video.",top:"Top students this month",mine:"Certificates",add:"Add monthly reward (admin)",save:"Save reward",rtp:"Title",ryp:"YouTube link",rnp:"Message for students",none:"No reward posted yet.",nt:"No game activity yet this month.",nc:"No certificates yet.",mk:"Make certificate",up:"Upload own file",dl:"Download",op:"Open",saved:"Saved",xp:"XP",cert:"Certificate of Appreciation",pf:"is proudly awarded to",why:"for excellent effort in Farsi class",tch:"Teacher"},
+ur:{home:"Ghar",out:"Bahar niklein",h:"Mahana Inaam",sub:"Hamare behtareen students aur is mahine ki khaas video.",top:"Is mahine ke top students",mine:"Certificates",add:"Mahana inaam shamil karein (admin)",save:"Inaam save karein",rtp:"Unwan",ryp:"YouTube link",rnp:"Students ke liye paigham",none:"Abhi koi inaam nahi lagaya gaya.",nc:"Abhi koi certificate nahi hai.",nt:"Is mahine abhi koi game nahi khela gaya.",mk:"Certificate banayein",up:"Apni file upload karein",dl:"Download",op:"Kholein",saved:"Save ho gaya",xp:"XP",cert:"Certificate of Appreciation",pf:"ko fakhar ke saath diya jata hai",why:"Farsi class mein shandar mehnat ke liye",tch:"Ustaad"}};
+var L="en",U,P,ADM=false,NAMES={};
+try{L=localStorage.getItem("dars_lang")||"en"}catch(e){}
+function t(k){return T[L][k]||T.en[k]||k}
+function ytid(u){var m=/(?:youtu\.be\/|v=|embed\/|shorts\/)([\w-]{11})/.exec(u||"");return m?m[1]:null}
+function lang(){document.querySelectorAll("[data-t]").forEach(function(e){e.textContent=t(e.dataset.t)});
+  document.querySelectorAll("[data-p]").forEach(function(e){e.placeholder=t(e.dataset.p)});
+  $("lg").textContent=L==="en"?"Roman Urdu":"English";document.documentElement.lang=L==="en"?"en":"ur-Latn"}
+function drawCert(name,title,month){var c=document.createElement("canvas");c.width=1200;c.height=850;var x=c.getContext("2d");
+  x.fillStyle="#FFFDF6";x.fillRect(0,0,1200,850);x.strokeStyle="#1B2A6B";x.lineWidth=14;x.strokeRect(30,30,1140,790);
+  x.strokeStyle="#E0A526";x.lineWidth=4;x.strokeRect(54,54,1092,742);x.textAlign="center";
+  x.fillStyle="#1B2A6B";x.font="bold 64px Georgia,serif";x.fillText(title||t("cert"),600,230);
+  x.fillStyle="#5B6A8A";x.font="30px Georgia,serif";x.fillText(t("pf"),600,320);
+  x.fillStyle="#17707A";x.font="bold 82px Georgia,serif";x.fillText(name,600,450,1000);
+  x.fillStyle="#14224A";x.font="32px Georgia,serif";x.fillText(t("why"),600,540);x.fillText(month||"",600,590);
+  x.fillStyle="#E0A526";x.beginPath();x.arc(600,690,44,0,7);x.fill();x.fillStyle="#1B2A6B";x.font="bold 40px Georgia,serif";x.fillText("★",600,704);
+  x.strokeStyle="#14224A";x.lineWidth=2;x.beginPath();x.moveTo(880,720);x.lineTo(1080,720);x.stroke();x.font="24px Georgia,serif";x.fillText(t("tch"),980,752);
+  var a=document.createElement("a");a.download="certificate-"+name.replace(/\W+/g,"-")+".png";a.href=c.toDataURL("image/png");a.click()}
+async function load(){
+  var r=await Promise.all([sb.from("rewards").select("*").order("month",{ascending:false}).limit(1),sb.rpc("top_students"),sb.from("certificates").select("*").order("created_at",{ascending:false})]);
+  var w=(r[0].data||[])[0],id=w&&ytid(w.youtube_url);
+  $("rw").innerHTML=w?'<h3>'+esc(w.title)+' <span class="tag gold">'+esc(w.month)+'</span></h3>'+(id?'<div style="position:relative;padding-top:56.25%"><iframe src="https://www.youtube-nocookie.com/embed/'+id+'" title="'+esc(w.title)+'" style="position:absolute;inset:0;width:100%;height:100%;border:0;border-radius:12px" allowfullscreen></iframe></div>':'')+'<p>'+esc(w.note||"")+'</p>':'<p class="sub">'+t("none")+'</p>';
+  var tp=r[1].data||[];
+  $("tp").innerHTML=tp.length?'<table>'+tp.map(function(s,i){NAMES[s.student_id]=s.full_name;return '<tr><td>'+["🥇","🥈","🥉","4","5"][i]+'</td><td>'+esc(s.full_name)+'</td><td>'+s.xp+' '+t("xp")+'</td>'+(ADM?'<td><button class="btn sm" data-mk="'+s.student_id+'">'+t("mk")+'</button> <label class="btn sm alt" style="display:inline-block;margin:0">'+t("up")+'<input type="file" hidden data-up="'+s.student_id+'"></label></td>':'')+'</tr>'}).join("")+'</table>':'<p class="sub">'+t("nt")+'</p>';
+  var cs=r[2].data||[];
+  if(ADM){var pr=await sb.from("profiles").select("id,full_name");(pr.data||[]).forEach(function(p){NAMES[p.id]=p.full_name||"Student"})}
+  $("mc").innerHTML=cs.length?'<table>'+cs.map(function(c){return '<tr><td>'+esc(c.title)+(ADM?' · '+esc(NAMES[c.student_id]||""):"")+'</td><td>'+esc(c.month||"")+'</td><td><button class="btn sm" data-c="'+c.id+'">'+(c.kind==="uploaded"?t("op"):t("dl"))+'</button></td></tr>'}).join("")+'</table>':'<p class="sub">'+t("nc")+'</p>';
+  window.CS=cs}
+document.addEventListener("click",async function(e){var b=e.target.closest("button");if(!b)return;
+  if(b.dataset.mk){var m=new Date().toISOString().slice(0,7);var x=await sb.from("certificates").insert({student_id:b.dataset.mk,title:t("cert"),month:m,kind:"generated"});toast(x.error?x.error.message:t("saved"));load()}
+  if(b.dataset.c){var c=window.CS.find(function(z){return z.id===b.dataset.c});if(c.kind==="uploaded"){var s=await sb.storage.from("certificates").createSignedUrl(c.file_path,3600);if(s.data)window.open(s.data.signedUrl,"_blank");else toast(s.error.message)}else drawCert(ADM?(NAMES[c.student_id]||"Student"):(P.full_name||"Student"),c.title,c.month)}});
+document.addEventListener("change",async function(e){var f=e.target.dataset&&e.target.dataset.up;if(!f||!e.target.files[0])return;var file=e.target.files[0];
+  var path=f+"/"+Date.now()+"-"+file.name.replace(/[^\w.-]+/g,"_");var u=await sb.storage.from("certificates").upload(path,file);
+  if(u.error){toast(u.error.message);return}
+  var x=await sb.from("certificates").insert({student_id:f,title:file.name,month:new Date().toISOString().slice(0,7),kind:"uploaded",file_path:path});toast(x.error?x.error.message:t("saved"));load()});
+$("rs").onclick=async function(){var m=$("rm").value,ti=$("rt").value.trim();if(!m||!ti){toast("Month + title");return}
+  var x=await sb.from("rewards").insert({month:m,title:ti,youtube_url:$("ry").value.trim(),note:$("rn").value.trim()});toast(x.error?x.error.message:t("saved"));load()};
+$("lg").onclick=function(){L=L==="en"?"ur":"en";try{localStorage.setItem("dars_lang",L)}catch(e){}lang();load()};
+$("out").onclick=signOut;
+(async function(){var u=await requireUser();if(!u)return;U=u.session.user;P=u.profile;ADM=P.role==="admin";if(ADM)$("ad").classList.remove("hide");lang();load()})();
+</script></body></html>

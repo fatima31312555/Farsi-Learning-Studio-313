@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dars · Farsi Class</title>
+<meta name="description" content="Learn Farsi with Arif Hussain: lessons, vocabulary, games and homework in one place.">
+<link rel="stylesheet" href="style.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js"></script><script src="common.js"></script>
+</head><body>
+<header class="top"><div class="wrap"><h1>Dars · Farsi Class</h1>
+<nav id="nav"><a href="login.html">Sign in</a></nav></div></header>
+<section class="hero">
+  <div class="big fa">درسِ فارسی</div>
+  <h1>Learn Farsi with Arif Hussain</h1>
+  <p>Letters, vocabulary, past tense, real-life conversations and games. Your teacher sets homework and you track your own progress.</p>
+  <a class="btn sf" href="login.html?mode=signup" id="cta">Create your free account</a>
+</section>
+<main><div class="wrap grid">
+  <div class="panel"><h3>32 letters and 120+ words</h3><p class="sub">Flashcards and quizzes with sound, organised by topic.</p></div>
+  <div class="panel"><h3>Homework from your teacher</h3><p class="sub">New assignments and announcements appear on your dashboard.</p></div>
+  <div class="panel"><h3>Games and progress</h3><p class="sub">Earn XP, keep a streak and see how many words you know.</p></div>
+</div></main>
+<div id="toast" role="status"></div>
+<script>
+if(configured){sb.auth.getSession().then(function(r){if(r.data.session){$("nav").innerHTML='<a href="dashboard.html">My dashboard</a>';$("cta").textContent="Go to my dashboard";$("cta").href="dashboard.html"}})}else showSetupNotice();
+</script></body></html>
